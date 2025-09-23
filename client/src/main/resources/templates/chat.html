@@ -488,6 +488,12 @@
 
     function onMessageReceived(payload) {
         const message = JSON.parse(payload.body);
+
+        // **FIXED**: Ignore echoed user's own chat messages to prevent duplicates.
+        if (message.sender === username && message.type === 'CHAT') {
+            return;
+        }
+
         const isAi = message.sender === 'University Assistant';
 
         if (isAi) {
@@ -500,7 +506,7 @@
     }
 
     function sendMessageToServer(messageContent) {
-        if (messageContent && stompClient && !isWaitingForResponse) {
+        if (messageContent && stompClient) {
             const chatMessage = {sender: username, content: messageContent, type: 'CHAT'};
             stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
 
@@ -517,8 +523,7 @@
 
         if (message.type === 'JOIN' || message.type === 'LEAVE') {
             messageElement.className = 'message system';
-            const content = message.type === 'JOIN' ? `${message.sender} joined` : `${message.sender} left`;
-            contentDiv.textContent = content;
+            contentDiv.textContent = message.type === 'JOIN' ? `${message.sender} joined` : `${message.sender} left`;
             messageElement.querySelector('.message-info').style.display = 'none';
         } else {
             const isOwn = message.sender === username;
@@ -533,11 +538,10 @@
             }
             messageElement.className = messageClass;
 
-            const senderDisplay = isAi ? '🤖 ' + message.sender : (isOwn ? 'You' : message.sender);
-            messageElement.querySelector('.sender-name').textContent = senderDisplay;
+            messageElement.querySelector('.sender-name').textContent = isAi ? '🤖 ' + message.sender : (isOwn ? 'You' : message.sender);
             messageElement.querySelector('.timestamp').textContent = message.timestamp || '';
 
-            // **MODIFIED**: Use marked.parse() for AI messages, textContent for others
+            // Use marked.parse() for AI messages, textContent for others
             if (isAi) {
                 // Sanitize the output to prevent script injection from rogue markdown
                 contentDiv.innerHTML = marked.parse(message.content, {sanitize: true});
@@ -572,11 +576,30 @@
         expandedSendBtn.disabled = !enabled;
     }
 
+    // Function to get current time as HH:mm
+    function getCurrentTime() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+
     // --- Input Handling ---
     function sendMessageFromInput() {
         const messageContent = messageInput.value.trim();
-        if (messageContent) {
+        if (messageContent && !isWaitingForResponse) {
+            // **FIXED**: Display user message locally first
+            const localMessage = {
+                type: 'CHAT',
+                content: messageContent,
+                sender: username,
+                timestamp: getCurrentTime()
+            };
+            showMessage(localMessage);
+
+            // Then, send to server and show typing indicator
             sendMessageToServer(messageContent);
+
             messageInput.value = '';
             autoResize(messageInput);
             updateCharacterCounter(messageInput, 'charCount');
@@ -585,8 +608,19 @@
 
     function sendMessageFromExpandedInput() {
         const messageContent = expandedMessageInput.value.trim();
-        if (messageContent) {
+        if (messageContent && !isWaitingForResponse) {
+            // **FIXED**: Display user message locally first
+            const localMessage = {
+                type: 'CHAT',
+                content: messageContent,
+                sender: username,
+                timestamp: getCurrentTime()
+            };
+            showMessage(localMessage);
+
+            // Then, send to server and show typing indicator
             sendMessageToServer(messageContent);
+
             closeExpandedInput();
         }
     }

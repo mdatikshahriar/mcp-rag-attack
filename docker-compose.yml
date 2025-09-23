@@ -16,6 +16,8 @@ services:
       - AZURE_OPENAI_EMBEDDING_API_KEY=${AZURE_OPENAI_EMBEDDING_API_KEY}
       - LOGGING_LEVEL_ROOT=INFO
       - SPRING_PROFILES_ACTIVE=docker
+    volumes:
+      - ./client/embedding:/embedding
     depends_on:
       - server
     networks:

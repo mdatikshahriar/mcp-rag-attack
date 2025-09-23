@@ -9,105 +9,46 @@ import java.util.regex.Pattern;
 @Slf4j
 @Service
 public class MessageFilterService {
-	private static final List<Pattern> GRADE_PATTERNS = List.of(
-			Pattern.compile("(?i).*(grade|gpa|score|mark|result).*", Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*(calculate|compute|average|mean).*gpa.*", Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*what.*grade.*(student|course).*", Pattern.CASE_INSENSITIVE));
+    // Patterns for simple, stateless conversational turns that don't require RAG or tools.
+    private static final List<Pattern> CONVERSATIONAL_PATTERNS = List.of(Pattern.compile(
+                    "(?i)^\\s*(hi|hello|hey|greetings|good morning|good afternoon|good evening)\\s*[.!?]?$"),
+            Pattern.compile("(?i)^\\s*(bye|goodbye|see you|later|cya)\\s*[.!]?$"),
+            Pattern.compile("(?i)^\\s*(thanks|thank you|thx|ty|appreciate it)\\s*[.!]?$"),
+            Pattern.compile("(?i)^\\s*(how are you|how's it going|what's up)\\s*\\??$"),
+            Pattern.compile("(?i)^\\s*(ok|okay|got it|understood)\\s*[.!]?$"));
 
-	private static final List<Pattern> STATISTICS_PATTERNS = List.of(
-			Pattern.compile("(?i).*(statistic|analytics|report|summary).*", Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*(how many|count|total|number of).*(student|course|research).*",
-					Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*(average|mean|median|distribution).*", Pattern.CASE_INSENSITIVE));
+    public FilterResult filterMessage(String message) {
+        if (message == null || message.trim().isEmpty()) {
+            return new FilterResult(false, "Empty message", "COMPLEX", message);
+        }
 
-	private static final List<Pattern> ACADEMIC_SEARCH_PATTERNS = List.of(
-			Pattern.compile("(?i).*(search|find|look for|locate).*(paper|research|publication|article).*",
-					Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*(research|paper|publication|article|study|thesis|dissertation).*(about|on).*",
-					Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*(citation|reference|bibliography|scholarly|academic).*", Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*(literature review|research database|academic database).*",
-					Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*find.*(author|researcher|scholar).*work.*", Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*(journal|conference|proceeding|manuscript).*search.*", Pattern.CASE_INSENSITIVE),
-			Pattern.compile("(?i).*what.*research.*(available|exist|done).*(topic|subject|field).*",
-					Pattern.CASE_INSENSITIVE));
+        String trimmedMessage = message.trim();
+        log.info("Filtering message: {}", trimmedMessage.length() > 50 ?
+                trimmedMessage.substring(0, 50) + "..." :
+                trimmedMessage);
 
-	public FilterResult filterMessage(String message) {
-		if (message == null || message.trim().isEmpty()) {
-			return new FilterResult(false, "Empty message", "NONE", message);
-		}
+        for (Pattern pattern : CONVERSATIONAL_PATTERNS) {
+            if (pattern.matcher(trimmedMessage).matches()) {
+                log.info("Simple conversational query detected.");
+                // Flag this for a special, non-RAG path.
+                return new FilterResult(true, "Simple conversation", "CONVERSATIONAL",
+                        trimmedMessage);
+            }
+        }
 
-		String trimmedMessage = message.trim();
-		log.info("Filtering message: {}",
-				trimmedMessage.length() > 50 ? trimmedMessage.substring(0, 50) + "..." : trimmedMessage);
+        log.info("Complex query detected. Routing to RAG-first process.");
+        // This is the default path for all non-conversational queries.
+        return new FilterResult(false, "Complex query for RAG", "COMPLEX", trimmedMessage);
+    }
 
-		boolean isInternalResearchQuery = containsInternalResearchIndicators(trimmedMessage);
-
-		if (!isInternalResearchQuery) {
-			for (Pattern pattern : ACADEMIC_SEARCH_PATTERNS) {
-				if (pattern.matcher(trimmedMessage).matches()) {
-					log.info("External academic search query detected.");
-					return new FilterResult(true, "Academic database search needed", "ACADEMIC_SEARCH",
-							"Please perform an external academic database search for: " + trimmedMessage);
-				}
-			}
-		} else {
-			log.info("Internal university research query detected, routing to RAG.");
-		}
-
-		for (Pattern pattern : GRADE_PATTERNS) {
-			if (pattern.matcher(trimmedMessage).matches()) {
-				log.info("Grade query detected.");
-				return new FilterResult(true, "Grade calculation needed", "GRADE",
-						"Please use grade calculation tools for: " + trimmedMessage);
-			}
-		}
-
-		for (Pattern pattern : STATISTICS_PATTERNS) {
-			if (pattern.matcher(trimmedMessage).matches()) {
-				log.info("Statistics query detected.");
-				return new FilterResult(true, "Statistics calculation needed", "STATISTICS",
-						"Please use statistics tools for: " + trimmedMessage);
-			}
-		}
-
-		log.info("Regular RAG query detected, no specific MCP tools needed.");
-		return new FilterResult(false, "Regular query", "RAG", trimmedMessage);
-	}
-
-	private boolean containsInternalResearchIndicators(String message) {
-		String lowerMessage = message.toLowerCase();
-
-		boolean hasStrongInternalIndicators =
-				lowerMessage.contains("university research") || lowerMessage.contains("internal research")
-						|| lowerMessage.contains("local research") || lowerMessage.matches(
-						".*research\\s+id\\s*:?\\s*[a-z0-9]+.*") || // "research id: RES001"
-						lowerMessage.matches(".*\\b(res|proj)\\d{3,}\\b.*"); // ID patterns like RES001, PROJ123
-
-		boolean hasLookupTerms = lowerMessage.contains("find research by") || lowerMessage.contains("show me research")
-				|| lowerMessage.contains("list research") || lowerMessage.contains("get research")
-				|| lowerMessage.matches(
-				".*research.*(author|title|keyword|year)\\s*:.*"); // "research by author: Smith"
-
-		boolean hasExternalIndicators =
-				lowerMessage.contains("search pubmed") || lowerMessage.contains("search google scholar")
-						|| lowerMessage.contains("search ieee") || lowerMessage.contains("search arxiv")
-						|| lowerMessage.contains("latest research") || lowerMessage.contains("recent publications")
-						|| lowerMessage.contains("peer reviewed") || lowerMessage.matches(
-						".*research.*(journal|conference|proceeding|citation|doi)\\b.*");
-
-		if (hasExternalIndicators) {
-			return false; // Definitely external
-		}
-
-		// If it has strong internal indicators or lookup terms, it's likely internal.
-		return hasStrongInternalIndicators || hasLookupTerms;
-	}
-
-	public record FilterResult(boolean canBeHandledByMcp,
-			String reason,
-			String toolType,
-			String processedMessage) {
-	}
+    /**
+     * @param canBeHandledByMcp A flag indicating if a special, non-RAG path should be taken (true
+     *                          for conversational).
+     * @param reason            A description of the filter result.
+     * @param toolType          The type of query identified (e.g., CONVERSATIONAL, COMPLEX).
+     * @param processedMessage  The cleaned user message.
+     */
+    public record FilterResult(boolean canBeHandledByMcp, String reason, String toolType,
+                               String processedMessage) {
+    }
 }
