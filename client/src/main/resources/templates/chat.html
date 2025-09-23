@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Spring Boot Chat</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.0/css/bootstrap.min.css}">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .chat-container {
+            max-width: 900px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 15px;
+            max-width: 75%;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        .message.own {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.other {
+            background: white;
+            border: 1px solid #dee2e6;
+            margin-right: auto;
+        }
+
+        .message.system {
+            background: #e9ecef;
+            text-align: center;
+            font-style: italic;
+            color: #6c757d;
+            max-width: 100%;
+            margin: 10px auto;
+        }
+
+        .message.ai {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            margin-right: auto;
+            max-width: 85%;
+            border-left: 4px solid #20c997;
+        }
+
+        .message-info {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .message-content {
+            font-size: 0.95rem;
+            white-space: pre-wrap;
+            text-align: left; /* Ensure AI content is left-aligned */
+        }
+
+        /* --- Styles for Markdown Content --- */
+        .message-content ul, .message-content ol {
+            padding-left: 20px;
+            margin-bottom: 0;
+        }
+
+        .message-content pre {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 0.85em;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .message-content code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .message-content pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .message-content blockquote {
+            border-left: 3px solid rgba(255, 255, 255, 0.5);
+            padding-left: 10px;
+            margin-left: 5px;
+            font-style: italic;
+        }
+
+        .message-content a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        .message-content.other-md a {
+            color: #667eea; /* Different link color for non-AI messages */
+        }
+
+
+        .chat-input {
+            padding: 15px 20px;
+            background: white;
+            border-top: 1px solid #dee2e6;
+            position: relative;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        #message {
+            flex: 1;
+            min-height: 40px;
+            max-height: 200px;
+            resize: none;
+            border: 2px solid #dee2e6;
+            border-radius: 20px;
+            padding: 10px 15px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            overflow-y: auto;
+            transition: border-color 0.3s ease;
+        }
+
+        #message:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        #message::placeholder {
+            color: #6c757d;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        .online-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: #28a745;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        #messageArea {
+            scroll-behavior: smooth;
+        }
+
+        .character-count {
+            position: absolute;
+            bottom: 5px;
+            right: 80px;
+            font-size: 0.75rem;
+            color: #6c757d;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .character-count.warning {
+            color: #ff6b6b;
+        }
+
+        .expand-btn {
+            position: absolute;
+            top: -35px;
+            right: 20px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 15px 15px 0 0;
+            padding: 5px 15px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+
+        .expand-btn:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .input-expanded {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .expanded-input-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .expanded-input-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .expanded-input-header h5 {
+            margin: 0;
+            color: #495057;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6c757d;
+            padding: 0;
+            margin-left: auto;
+        }
+
+        .close-btn:hover {
+            color: #495057;
+        }
+
+        #expandedMessage {
+            flex: 1;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: none;
+            outline: none;
+            min-height: 200px;
+        }
+
+        #expandedMessage:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .expanded-input-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .expanded-send-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 25px;
+            padding: 10px 25px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .expanded-send-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .expanded-send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Typing indicator style */
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: #a9acb4;
+            display: inline-block;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: bob 1s infinite alternate;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bob {
+            100% {
+                transform: translateY(-6px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .chat-container {
+                margin: 10px;
+                height: 95vh;
+                border-radius: 0;
+            }
+
+            .message {
+                max-width: 85%;
+            }
+
+            .expanded-input-container {
+                margin: 10px;
+                max-height: 95vh;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- Template for messages -->
+<template id="message-template">
+    <div class="message">
+        <div class="message-info">
+            <span class="sender-name"></span> • <span class="timestamp"></span>
+        </div>
+        <div class="message-content"></div>
+    </div>
+</template>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <h4><span class="online-indicator"></span>University Assistant</h4>
+        <small id="username-display">Connecting...</small>
+    </div>
+    <div class="chat-messages" id="messageArea"></div>
+    <div class="chat-input">
+        <div class="expand-btn" onclick="expandInput()" title="Expand for longer messages">📝 Expand</div>
+        <div class="input-container">
+            <textarea class="form-control" id="message" maxlength="10000"
+                      placeholder="Ask the University Assistant..."
+                      rows="1"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="sendMessageFromInput()" type="button">
+                <svg fill="currentColor" height="20" viewBox="0 0 16 16" width="20">
+                    <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="character-count" id="charCount">0/10000</div>
+    </div>
+</div>
+
+<!-- Expanded Input Modal -->
+<div class="input-expanded" id="expandedInputModal" style="display: none;">
+    <div class="expanded-input-container">
+        <div class="expanded-input-header">
+            <h5>Compose Your Message</h5>
+            <button class="close-btn" onclick="closeExpandedInput()">&times;</button>
+        </div>
+        <textarea id="expandedMessage" placeholder="Write your detailed query here... (Ctrl+Enter to send)"></textarea>
+        <div class="expanded-input-footer">
+            <div class="character-count" id="expandedCharCount">0/10000</div>
+            <button class="expanded-send-btn" id="expandedSendBtn" onclick="sendMessageFromExpandedInput()">
+                Send Message
+            </button>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/webjars/jquery/3.7.0/jquery.min.js}"></script>
+<script th:src="@{/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/webjars/sockjs-client/1.5.1/sockjs.min.js}"></script>
+<script th:src="@{/webjars/stomp-websocket/2.3.4/stomp.min.js}"></script>
+<script th:src="@{/webjars/marked/4.3.0/marked.min.js}"></script> <!-- ADDED MARKED.JS LIBRARY -->
+
+<script>
+    'use strict';
+
+    // DOM Elements
+    const messageArea = document.getElementById('messageArea');
+    const messageInput = document.getElementById('message');
+    const expandedMessageInput = document.getElementById('expandedMessage');
+    const sendBtn = document.getElementById('sendBtn');
+    const expandedSendBtn = document.getElementById('expandedSendBtn');
+    const usernameDisplay = document.getElementById('username-display');
+    const messageTemplate = document.getElementById('message-template');
+
+    // State
+    let stompClient = null;
+    let username = null;
+    let isWaitingForResponse = false;
+
+    // --- Core Functions ---
+    function connect() {
+        const urlParams = new URLSearchParams(window.location.search);
+        username = urlParams.get('username');
+        if (!username) {
+            window.location.href = '/';
+            return;
+        }
+        usernameDisplay.textContent = 'Welcome, ' + username + '!';
+
+        const socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.reconnect_delay = 5000;
+
+        stompClient.connect({}, onConnected, onError);
+    }
+
+    function onConnected() {
+        console.log('Connected to WebSocket');
+        stompClient.subscribe('/topic/public', onMessageReceived);
+        stompClient.send("/app/chat.addUser", {}, JSON.stringify({sender: username, type: 'JOIN'}));
+    }
+
+    function onError(error) {
+        console.error('Could not connect to WebSocket server. Please refresh and try again!', error);
+        usernameDisplay.textContent = 'Connection lost. Please refresh.';
+    }
+
+    function onMessageReceived(payload) {
+        const message = JSON.parse(payload.body);
+        const isAi = message.sender === 'University Assistant';
+
+        if (isAi) {
+            removeTypingIndicator();
+            isWaitingForResponse = false;
+            toggleSendButtons(true);
+        }
+
+        showMessage(message);
+    }
+
+    function sendMessageToServer(messageContent) {
+        if (messageContent && stompClient && !isWaitingForResponse) {
+            const chatMessage = {sender: username, content: messageContent, type: 'CHAT'};
+            stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+
+            isWaitingForResponse = true;
+            toggleSendButtons(false);
+            showTypingIndicator();
+        }
+    }
+
+    // --- UI and Message Display ---
+    function showMessage(message) {
+        const messageElement = messageTemplate.content.cloneNode(true).firstElementChild;
+        const contentDiv = messageElement.querySelector('.message-content');
+
+        if (message.type === 'JOIN' || message.type === 'LEAVE') {
+            messageElement.className = 'message system';
+            const content = message.type === 'JOIN' ? `${message.sender} joined` : `${message.sender} left`;
+            contentDiv.textContent = content;
+            messageElement.querySelector('.message-info').style.display = 'none';
+        } else {
+            const isOwn = message.sender === username;
+            const isAi = message.sender === 'University Assistant';
+
+            let messageClass = 'message';
+            if (isAi) messageClass += ' ai';
+            else if (isOwn) messageClass += ' own';
+            else {
+                messageClass += ' other';
+                contentDiv.classList.add('other-md'); // For separate link styling
+            }
+            messageElement.className = messageClass;
+
+            const senderDisplay = isAi ? '🤖 ' + message.sender : (isOwn ? 'You' : message.sender);
+            messageElement.querySelector('.sender-name').textContent = senderDisplay;
+            messageElement.querySelector('.timestamp').textContent = message.timestamp || '';
+
+            // **MODIFIED**: Use marked.parse() for AI messages, textContent for others
+            if (isAi) {
+                // Sanitize the output to prevent script injection from rogue markdown
+                contentDiv.innerHTML = marked.parse(message.content, {sanitize: true});
+            } else {
+                contentDiv.textContent = message.content;
+            }
+        }
+
+        messageArea.appendChild(messageElement);
+        messageArea.scrollTop = messageArea.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+        if (document.getElementById('typing-indicator')) return;
+        const typingElement = document.createElement('div');
+        typingElement.id = 'typing-indicator';
+        typingElement.className = 'message ai typing-indicator';
+        typingElement.innerHTML = `<span></span><span></span><span></span>`;
+        messageArea.appendChild(typingElement);
+        messageArea.scrollTop = messageArea.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+        const typingElement = document.getElementById('typing-indicator');
+        if (typingElement) {
+            typingElement.remove();
+        }
+    }
+
+    function toggleSendButtons(enabled) {
+        sendBtn.disabled = !enabled;
+        expandedSendBtn.disabled = !enabled;
+    }
+
+    // --- Input Handling ---
+    function sendMessageFromInput() {
+        const messageContent = messageInput.value.trim();
+        if (messageContent) {
+            sendMessageToServer(messageContent);
+            messageInput.value = '';
+            autoResize(messageInput);
+            updateCharacterCounter(messageInput, 'charCount');
+        }
+    }
+
+    function sendMessageFromExpandedInput() {
+        const messageContent = expandedMessageInput.value.trim();
+        if (messageContent) {
+            sendMessageToServer(messageContent);
+            closeExpandedInput();
+        }
+    }
+
+    function autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+    }
+
+    function updateCharacterCounter(inputElement, counterId) {
+        const counter = document.getElementById(counterId);
+        const length = inputElement.value.length;
+        counter.textContent = `${length}/10000`;
+        counter.classList.toggle('warning', length > 9000);
+    }
+
+    function expandInput() {
+        const modal = document.getElementById('expandedInputModal');
+        expandedMessageInput.value = messageInput.value;
+        modal.style.display = 'flex';
+        expandedMessageInput.focus();
+        updateCharacterCounter(expandedMessageInput, 'expandedCharCount');
+    }
+
+    function closeExpandedInput() {
+        const modal = document.getElementById('expandedInputModal');
+        messageInput.value = expandedMessageInput.value;
+        modal.style.display = 'none';
+        autoResize(messageInput);
+        updateCharacterCounter(messageInput, 'charCount');
+    }
+
+    // --- Event Listeners ---
+    messageInput.addEventListener('input', () => {
+        autoResize(messageInput);
+        updateCharacterCounter(messageInput, 'charCount');
+    });
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessageFromInput();
+        }
+    });
+
+    expandedMessageInput.addEventListener('input', () => updateCharacterCounter(expandedMessageInput, 'expandedCharCount'));
+    expandedMessageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.ctrlKey) {
+            e.preventDefault();
+            sendMessageFromExpandedInput();
+        }
+    });
+
+    document.getElementById('expandedInputModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeExpandedInput();
+    });
+
+    window.addEventListener('load', connect);
+    window.addEventListener('beforeunload', () => {
+        if (stompClient) stompClient.disconnect();
+    });
+
+    // Initial setup
+    messageInput.focus();
+    updateCharacterCounter(messageInput, 'charCount');
+</script>
+</body>
+</html>

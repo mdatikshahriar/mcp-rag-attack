@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>University Data XLSX Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            color: #2c3e50;
+            font-weight: bold;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: #e74c3c;
+        }
+        
+        .control-panel {
+            background: rgba(52, 152, 219, 0.1);
+            border: 2px solid #3498db;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .control-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        label {
+            font-weight: bold;
+            color: #2c3e50;
+            min-width: 120px;
+        }
+        
+        input {
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .preview-section {
+            margin-top: 30px;
+            background: rgba(46, 204, 113, 0.1);
+            border: 2px solid #27ae60;
+            border-radius: 15px;
+            padding: 25px;
+        }
+        
+        .preview-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            background: #ecf0f1;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+        }
+        
+        .tab:hover {
+            background: #bdc3c7;
+        }
+        
+        .tab.active:hover {
+            background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
+        }
+        
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .preview-table th, .preview-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .preview-table th {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .preview-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .preview-table tr:hover {
+            background-color: #e3f2fd;
+        }
+        
+        .success-message {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .control-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            label {
+                min-width: auto;
+                margin-bottom: 5px;
+            }
+            
+            .preview-tabs {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 University Data Generator</h1>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="studentCount">150</div>
+                <div>Students</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="courseCount">120</div>
+                <div>Courses</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="researchCount">100</div>
+                <div>Research Papers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="gradeCount">500</div>
+                <div>Grade Records</div>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <h3 style="color: #2c3e50; margin-top: 0;">📊 Data Configuration</h3>
+            
+            <div class="control-row">
+                <label for="studentCountInput">Students:</label>
+                <input type="number" id="studentCountInput" value="150" min="10" max="1000">
+                
+                <label for="courseCountInput">Courses:</label>
+                <input type="number" id="courseCountInput" value="120" min="10" max="500">
+            </div>
+            
+            <div class="control-row">
+                <label for="researchCountInput">Research:</label>
+                <input type="number" id="researchCountInput" value="100" min="10" max="500">
+                
+                <label for="gradeCountInput">Grades:</label>
+                <input type="number" id="gradeCountInput" value="500" min="50" max="2000">
+            </div>
+            
+            <div class="control-row">
+                <button class="btn" onclick="generateAndDownload()">
+                    🚀 Generate XLSX File
+                </button>
+            </div>
+        </div>
+        
+        <div class="preview-section">
+            <h3 style="color: #27ae60; margin-top: 0;">👀 Data Preview</h3>
+            <div class="preview-tabs">
+                <button class="tab active" onclick="showPreview('students')">Students</button>
+                <button class="tab" onclick="showPreview('courses')">Courses</button>
+                <button class="tab" onclick="showPreview('research')">Research</button>
+                <button class="tab" onclick="showPreview('grades')">Grades</button>
+            </div>
+            <div id="previewContent"></div>
+        </div>
+        
+        <div id="successMessage" class="success-message">
+            ✅ Excel file generated successfully! Check your downloads folder.
+        </div>
+    </div>
+
+    <script>
+        let currentData = {};
+
+        // Sample data arrays
+        const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'Robert', 'Lisa', 'William', 'Jennifer', 'James', 'Amy', 'Christopher', 'Jessica', 'Matthew', 'Ashley', 'Daniel', 'Amanda', 'Joseph', 'Stephanie', 'Thomas', 'Melissa', 'Charles', 'Nicole', 'Steven', 'Elizabeth', 'Paul', 'Helen', 'Mark', 'Sharon', 'Donald', 'Donna', 'Kenneth', 'Carol', 'Joshua', 'Ruth', 'Kevin', 'Sandra', 'Brian', 'Betty', 'George', 'Dorothy', 'Edward', 'Lisa', 'Ronald', 'Nancy', 'Timothy', 'Karen', 'Jason', 'Helen', 'Jeffrey', 'Susan'];
+        
+        const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson', 'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores', 'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts'];
+        
+        const programs = ['Computer Science', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Engineering', 'Psychology', 'Economics', 'Business Administration', 'English Literature', 'History', 'Philosophy', 'Sociology', 'Political Science', 'Environmental Science', 'Mechanical Engineering', 'Electrical Engineering', 'Civil Engineering', 'Biomedical Engineering', 'Data Science'];
+        
+        const courseSubjects = ['CS', 'MATH', 'PHYS', 'CHEM', 'BIO', 'ENG', 'PSYC', 'ECON', 'BUS', 'ENGL', 'HIST', 'PHIL', 'SOC', 'POLS', 'ENV', 'MECH', 'ELEC', 'CIVL', 'BIOM', 'DATA'];
+        
+        const instructors = ['Dr. Smith', 'Prof. Johnson', 'Dr. Williams', 'Prof. Brown', 'Dr. Jones', 'Prof. Garcia', 'Dr. Miller', 'Prof. Davis', 'Dr. Rodriguez', 'Prof. Martinez', 'Dr. Anderson', 'Prof. Thompson', 'Dr. Wilson', 'Prof. Moore', 'Dr. Taylor', 'Prof. Thomas', 'Dr. Jackson', 'Prof. White', 'Dr. Harris', 'Prof. Martin'];
+        
+        const researchKeywords = [
+            'machine learning, artificial intelligence, data mining',
+            'quantum computing, algorithms, optimization',
+            'climate change, environmental science, sustainability',
+            'biotechnology, genetics, molecular biology',
+            'renewable energy, solar cells, efficiency',
+            'cybersecurity, network security, cryptography',
+            'cognitive psychology, behavior analysis, neuroscience',
+            'economic modeling, market analysis, finance',
+            'software engineering, system design, architecture',
+            'materials science, nanotechnology, composites'
+        ];
+
+        function random(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function randomChoice(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
+        function generateStudents(count) {
+            const students = [];
+            for (let i = 1; i <= count; i++) {
+                const firstName = randomChoice(firstNames);
+                const lastName = randomChoice(lastNames);
+                const studentId = `STU${i.toString().padStart(3, '0')}`;
+                const name = `${firstName} ${lastName}`;
+                const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@university.edu`;
+                const program = randomChoice(programs);
+                const gpa = (Math.random() * 1.5 + 2.5).toFixed(2); // GPA between 2.5 and 4.0
+                
+                students.push([studentId, name, email, program, parseFloat(gpa)]);
+            }
+            return students;
+        }
+
+        function generateCourses(count) {
+            const courses = [];
+            const courseNames = [
+                'Introduction to Programming', 'Data Structures', 'Algorithms', 'Database Systems', 'Web Development',
+                'Calculus I', 'Calculus II', 'Linear Algebra', 'Statistics', 'Discrete Mathematics',
+                'General Physics', 'Quantum Mechanics', 'Thermodynamics', 'Electromagnetism', 'Optics',
+                'Organic Chemistry', 'Inorganic Chemistry', 'Physical Chemistry', 'Analytical Chemistry', 'Biochemistry',
+                'Cell Biology', 'Genetics', 'Ecology', 'Microbiology', 'Molecular Biology',
+                'Microeconomics', 'Macroeconomics', 'International Economics', 'Econometrics', 'Game Theory',
+                'Cognitive Psychology', 'Social Psychology', 'Developmental Psychology', 'Research Methods', 'Abnormal Psychology'
+            ];
+            
+            for (let i = 1; i <= count; i++) {
+                const subject = randomChoice(courseSubjects);
+                const courseNumber = random(100, 499);
+                const courseId = `${subject}${courseNumber}`;
+                const title = randomChoice(courseNames);
+                const description = `Advanced study in ${title.toLowerCase()} covering theoretical and practical aspects with hands-on experience.`;
+                const credits = random(3, 4);
+                const instructor = randomChoice(instructors);
+                const capacity = random(20, 50);
+                
+                courses.push([courseId, title, description, credits, instructor, capacity]);
+            }
+            return courses;
+        }
+
+        function generateResearch(count) {
+            const research = [];
+            const researchTitles = [
+                'Advanced Machine Learning Applications in Healthcare',
+                'Quantum Computing Algorithms for Optimization Problems',
+                'Climate Change Impact on Biodiversity Conservation',
+                'Novel Approaches to Gene Therapy in Cancer Treatment',
+                'Sustainable Energy Solutions Using Solar Technology',
+                'Cybersecurity Frameworks for IoT Networks',
+                'Cognitive Behavioral Analysis in Educational Settings',
+                'Economic Impact of Digital Transformation',
+                'Software Architecture Patterns for Scalable Systems',
+                'Nanotechnology Applications in Materials Science',
+                'Artificial Intelligence in Medical Diagnosis',
+                'Blockchain Technology in Supply Chain Management',
+                'Environmental Monitoring Using Sensor Networks',
+                'Genetic Engineering for Crop Improvement',
+                'Renewable Energy Storage Solutions',
+                'Machine Learning for Financial Risk Assessment',
+                'Human-Computer Interaction in Virtual Reality',
+                'Data Mining Techniques for Social Media Analysis',
+                'Robotics Applications in Manufacturing',
+                'Bioinformatics Approaches to Drug Discovery'
+            ];
+            
+            for (let i = 1; i <= count; i++) {
+                const researchId = `RES${i.toString().padStart(3, '0')}`;
+                const title = randomChoice(researchTitles);
+                const abstractText = `This research investigates ${title.toLowerCase()} through comprehensive analysis and experimental validation. The study employs innovative methodologies to address current challenges and proposes novel solutions with significant practical implications. Results demonstrate substantial improvements over existing approaches and provide valuable insights for future research directions.`;
+                const author1 = `${randomChoice(firstNames)} ${randomChoice(lastNames)}`;
+                const author2 = `${randomChoice(firstNames)} ${randomChoice(lastNames)}`;
+                const authors = Math.random() > 0.5 ? `${author1}, ${author2}` : author1;
+                const year = random(2020, 2024);
+                const keywords = randomChoice(researchKeywords);
+                
+                research.push([researchId, title, abstractText, authors, year, keywords]);
+            }
+            return research;
+        }
+
+        function generateGrades(count, studentCount, courseCount) {
+            const grades = [];
+            const gradeOptions = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'F'];
+            const gradePoints = [4.0, 4.0, 3.7, 3.3, 3.0, 2.7, 2.3, 2.0, 1.7, 1.3, 1.0, 0.0];
+            
+            for (let i = 1; i <= count; i++) {
+                const studentId = `STU${random(1, studentCount).toString().padStart(3, '0')}`;
+                const courseSubject = randomChoice(courseSubjects);
+                const courseNumber = random(100, 499);
+                const courseId = `${courseSubject}${courseNumber}`;
+                const gradeIndex = Math.random() < 0.8 ? random(0, 8) : random(9, 11); // 80% chance of C- or better
+                const grade = gradeOptions[gradeIndex];
+                const points = gradePoints[gradeIndex];
+                
+                grades.push([studentId, courseId, grade, points]);
+            }
+            return grades;
+        }
+
+        function updateCounts() {
+            const studentCount = parseInt(document.getElementById('studentCountInput').value);
+            const courseCount = parseInt(document.getElementById('courseCountInput').value);
+            const researchCount = parseInt(document.getElementById('researchCountInput').value);
+            const gradeCount = parseInt(document.getElementById('gradeCountInput').value);
+            
+            document.getElementById('studentCount').textContent = studentCount;
+            document.getElementById('courseCount').textContent = courseCount;
+            document.getElementById('researchCount').textContent = researchCount;
+            document.getElementById('gradeCount').textContent = gradeCount;
+        }
+
+        function showPreview(type) {
+            // Update tab states
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const content = document.getElementById('previewContent');
+            content.innerHTML = '<div class="loading">Generating preview...</div>';
+            
+            setTimeout(() => {
+                let html = '<table class="preview-table"><thead><tr>';
+                let data = [];
+                
+                if (type === 'students') {
+                    html += '<th>Student ID</th><th>Name</th><th>Email</th><th>Program</th><th>GPA</th>';
+                    data = currentData.students || generateStudents(5);
+                } else if (type === 'courses') {
+                    html += '<th>Course ID</th><th>Title</th><th>Description</th><th>Credits</th><th>Instructor</th><th>Capacity</th>';
+                    data = currentData.courses || generateCourses(5);
+                } else if (type === 'research') {
+                    html += '<th>Research ID</th><th>Title</th><th>Abstract</th><th>Authors</th><th>Year</th><th>Keywords</th>';
+                    data = currentData.research || generateResearch(5);
+                } else if (type === 'grades') {
+                    html += '<th>Student ID</th><th>Course ID</th><th>Grade</th><th>Points</th>';
+                    data = currentData.grades || generateGrades(10, 150, 120);
+                }
+                
+                html += '</tr></thead><tbody>';
+                
+                // Show only first 10 rows for preview
+                const previewData = data.slice(0, 10);
+                for (const row of previewData) {
+                    html += '<tr>';
+                    for (const cell of row) {
+                        const cellValue = typeof cell === 'string' && cell.length > 50 
+                            ? cell.substring(0, 50) + '...' 
+                            : cell;
+                        html += `<td>${cellValue}</td>`;
+                    }
+                    html += '</tr>';
+                }
+                
+                html += '</tbody></table>';
+                content.innerHTML = html;
+            }, 100);
+        }
+
+        function generateAndDownload() {
+            const studentCount = parseInt(document.getElementById('studentCountInput').value);
+            const courseCount = parseInt(document.getElementById('courseCountInput').value);
+            const researchCount = parseInt(document.getElementById('researchCountInput').value);
+            const gradeCount = parseInt(document.getElementById('gradeCountInput').value);
+            
+            // Generate all data
+            console.log('Generating data...');
+            const studentsData = generateStudents(studentCount);
+            const coursesData = generateCourses(courseCount);
+            const researchData = generateResearch(researchCount);
+            const gradesData = generateGrades(gradeCount, studentCount, courseCount);
+            
+            // Store for preview
+            currentData = {
+                students: studentsData,
+                courses: coursesData,
+                research: researchData,
+                grades: gradesData
+            };
+            
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            
+            // Students sheet
+            const studentsWS = XLSX.utils.aoa_to_sheet([
+                ['Student ID', 'Name', 'Email', 'Program', 'GPA'],
+                ...studentsData
+            ]);
+            XLSX.utils.book_append_sheet(wb, studentsWS, 'Students');
+            
+            // Courses sheet
+            const coursesWS = XLSX.utils.aoa_to_sheet([
+                ['Course ID', 'Title', 'Description', 'Credits', 'Instructor', 'Capacity'],
+                ...coursesData
+            ]);
+            XLSX.utils.book_append_sheet(wb, coursesWS, 'Courses');
+            
+            // Research sheet
+            const researchWS = XLSX.utils.aoa_to_sheet([
+                ['Research ID', 'Title', 'Abstract', 'Authors', 'Year', 'Keywords'],
+                ...researchData
+            ]);
+            XLSX.utils.book_append_sheet(wb, researchWS, 'Research');
+            
+            // Grades sheet
+            const gradesWS = XLSX.utils.aoa_to_sheet([
+                ['Student ID', 'Course ID', 'Grade', 'Points'],
+                ...gradesData
+            ]);
+            XLSX.utils.book_append_sheet(wb, gradesWS, 'Grades');
+            
+            // Download file
+            XLSX.writeFile(wb, 'university_data.xlsx');
+            
+            // Show success message
+            const successMsg = document.getElementById('successMessage');
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 3000);
+            
+            console.log('File generated and downloaded!');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add event listeners to update counts
+            document.getElementById('studentCountInput').addEventListener('input', updateCounts);
+            document.getElementById('courseCountInput').addEventListener('input', updateCounts);
+            document.getElementById('researchCountInput').addEventListener('input', updateCounts);
+            document.getElementById('gradeCountInput').addEventListener('input', updateCounts);
+            
+            // Show initial preview
+            showPreview('students');
+        });
+    </script>
+</body>
+</html>

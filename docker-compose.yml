@@ -1,0 +1,57 @@
+services:
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: client.jar
+    ports:
+      - "8234:8234"
+    environment:
+      - SERVER_PORT=8234
+      - MCP_SERVER_URL=http://server:8080/mcp/message
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_EMBEDDING_ENDPOINT=${AZURE_OPENAI_EMBEDDING_ENDPOINT}
+      - AZURE_OPENAI_EMBEDDING_API_KEY=${AZURE_OPENAI_EMBEDDING_API_KEY}
+      - LOGGING_LEVEL_ROOT=INFO
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - server
+    networks:
+      - mcp-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: server.jar
+    expose:
+      - "8080"
+    environment:
+      - SERVER_PORT=8080
+      - LOGGING_LEVEL_ROOT=INFO
+      - SPRING_PROFILES_ACTIVE=docker
+      - LOGGING_PATTERN_CONSOLE=%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
+    networks:
+      - mcp-network
+    volumes:
+      - calculator-logs:/app/target
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  mcp-network:
+    driver: bridge
+
+volumes:
+  calculator-logs:

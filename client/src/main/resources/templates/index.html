@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring Boot Chat</title>
+    <link th:href="@{/webjars/bootstrap/5.3.0/css/bootstrap.min.css}" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+        }
+        .chat-icon {
+            font-size: 4rem;
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .btn-chat {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            color: white;
+            font-weight: 600;
+            transition: transform 0.3s ease;
+        }
+        .btn-chat:hover {
+            transform: translateY(-2px);
+            color: white;
+        }
+        .form-control {
+            border-radius: 25px;
+            border: 2px solid #e9ecef;
+            padding: 12px 20px;
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+    </style>
+</head>
+<body>
+<div class="login-container">
+    <div class="chat-icon">💬</div>
+    <h2 class="text-center mb-4">Join the Chat</h2>
+    <form id="usernameForm">
+        <div class="mb-3">
+            <label for="name" class="form-label">Enter your username:</label>
+            <input type="text" id="name" class="form-control" placeholder="Your username" required maxlength="20">
+        </div>
+        <div class="d-grid">
+            <button type="submit" class="btn btn-chat">Start Chatting</button>
+        </div>
+    </form>
+</div>
+
+<script th:src="@{/webjars/jquery/3.7.0/jquery.min.js}"></script>
+<script th:src="@{/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js}"></script>
+<script>
+    document.getElementById('usernameForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        let username = document.getElementById('name').value.trim();
+        if (username) {
+            window.location.href = '/chat?username=' + encodeURIComponent(username);
+        }
+    });
+</script>
+</body>
+</html>
