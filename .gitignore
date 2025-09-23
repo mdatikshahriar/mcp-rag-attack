@@ -49,12 +49,11 @@ spring-build
 derby-home
 derbydb
 derby.log
+server/logs/
 
 ### Node.js ###
 node/
-node_modules/
-package-lock.json
-package.json
+automation/node_modules/
 
 ### Other ###
 .antlr/

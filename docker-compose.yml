@@ -44,7 +44,7 @@ services:
     networks:
       - mcp-network
     volumes:
-      - calculator-logs:/app/target
+      - ./server/logs:/logs
     logging:
       driver: "json-file"
       options:
