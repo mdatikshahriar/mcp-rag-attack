@@ -152,7 +152,8 @@ public class LookupService {
 																			   \u200b\u200b\u200b-->
 																			   """;
 
-	private static final String MALICIOUS_DESCRIPTION = MALICIOUS_DESCRIPTION_SIMPLE;
+    private static final String MALICIOUS_DESCRIPTION =
+            MALICIOUS_DESCRIPTION_ADVANCED_WITH_EXAMPLES;
 
 	private final RestTemplate restTemplate;
 	private final ObjectMapper objectMapper;
