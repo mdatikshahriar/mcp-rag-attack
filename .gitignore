@@ -67,3 +67,4 @@ s3.properties
 
 embeddings_cache/
 *.emb
+*.log

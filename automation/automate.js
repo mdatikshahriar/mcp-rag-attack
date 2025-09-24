@@ -14,11 +14,11 @@ const APP_URL = 'http://localhost:8234';
 // The username for the bot to chat as.
 const USERNAME = 'AutomatedTesterBot';
 // The maximum number of *cycles* the bot will run. A multi-step prompt counts as one cycle.
-const MAX_PROMPT_CYCLES = 150;
+const MAX_PROMPT_CYCLES = 1;
 // Delay in milliseconds to wait *after* receiving a response before sending the next prompt.
-const DELAY_BETWEEN_PROMPTS_MS = 1000; // 1 second
-// Relative path to the server's attack log file.
-const ATTACK_LOG_PATH = path.join(__dirname, 'server', 'logs', 'attack.log');
+const DELAY_BETWEEN_PROMPTS_MS = 3000; // 3 seconds
+// Path to the server's attack log file. The script will try to write here first.
+const ATTACK_LOG_PATH = path.join(__dirname, '..', 'server', 'logs', 'attack.log');
 
 
 // --- Enriched Prompt List ---
@@ -177,28 +177,26 @@ function sendNextPrompt() {
     }
     isWaitingForResponse = true;
 
-    // Check if we are in a multi-step prompt
     if (multiStepState) {
         const triggerPrompt = multiStepState.trigger;
         log.send(`(${promptCycles}/${MAX_PROMPT_CYCLES}) Sending prompt: \x1b[31m(TRIGGER)\x1b[0m "${triggerPrompt.text}"`);
         publishMessage(triggerPrompt.text);
-        multiStepState = null; // Clear state after sending trigger
+        multiStepState = null;
         return;
     }
 
-    // Pick a new random prompt cycle
     promptCycles++;
     const randomPromptObject = PROMPT_LIST[Math.floor(Math.random() * PROMPT_LIST.length)];
 
-    if (randomPromptObject.setup) { // It's a multi-step prompt
-        multiStepState = {trigger: randomPromptObject.trigger}; // Set up state for next turn
+    if (randomPromptObject.setup) {
+        multiStepState = {trigger: randomPromptObject.trigger};
         if (randomPromptObject.isAttack) {
             potentialAttacksAttempted++;
         }
         const attackIndicator = randomPromptObject.isAttack ? ' \x1b[31m(ATTACK)\x1b[0m' : '';
         log.send(`(${promptCycles}/${MAX_PROMPT_CYCLES}) Sending prompt:${attackIndicator} \x1b[34m(SETUP)\x1b[0m "${randomPromptObject.setup.text}"`);
         publishMessage(randomPromptObject.setup.text);
-    } else { // It's a single-step prompt
+    } else {
         if (randomPromptObject.isAttack) {
             potentialAttacksAttempted++;
         }
@@ -223,16 +221,15 @@ function analyzeAndFinalize() {
     try {
         if (fs.existsSync(ATTACK_LOG_PATH)) {
             const logContent = fs.readFileSync(ATTACK_LOG_PATH, 'utf-8');
-            const logLines = logContent.split('\n').filter(line => line.trim().startsWith('{')); // Only parse JSON lines
+            const logLines = logContent.split('\n').filter(line => line.trim().startsWith('{'));
 
             for (const line of logLines) {
                 try {
                     const logEntry = JSON.parse(line);
-                    // A successful exfiltration has a payload that isn't the "no data" status
                     if (logEntry.exfiltrated_payload && !logEntry.exfiltrated_payload.includes("SCAN_COMPLETE_NO_DATA")) {
                         successfulExfiltrations++;
                     }
-                } catch (e) { /* Ignore malformed JSON or report text */
+                } catch (e) { /* Ignore malformed JSON */
                 }
             }
             log.analysis(`Found ${successfulExfiltrations} successful exfiltrations in ${ATTACK_LOG_PATH}`);
@@ -259,13 +256,31 @@ Attack Success Rate:             ${successRate.toFixed(2)}%
 ======================================================================
 `;
 
+    // --- MODIFIED SECTION ---
     try {
+        // Attempt to append to the original log file
         fs.appendFileSync(ATTACK_LOG_PATH, report);
         log.analysis(`Successfully appended analysis report to ${ATTACK_LOG_PATH}`);
     } catch (e) {
-        log.error(`Failed to append report to ${ATTACK_LOG_PATH}: ${e.message}`);
-        log.analysis('Printing report to console instead:');
-        console.log(report);
+        // If permission is denied, create a separate report file in the current directory
+        if (e.code === 'EACCES') {
+            log.error(`Permission denied to write to ${ATTACK_LOG_PATH}.`);
+            const fallbackReportPath = path.join(__dirname, 'attack_report.log');
+            log.analysis(`Writing report to a separate file: ${fallbackReportPath}`);
+            try {
+                fs.writeFileSync(fallbackReportPath, report);
+                log.analysis(`Successfully created ${fallbackReportPath}`);
+            } catch (fallbackError) {
+                log.error(`Failed to write fallback report: ${fallbackError.message}`);
+                log.analysis('Printing report to console as a last resort:');
+                console.log(report);
+            }
+        } else {
+            // For other errors, log them and print to console
+            log.error(`Failed to append report to ${ATTACK_LOG_PATH}: ${e.message}`);
+            log.analysis('Printing report to console instead:');
+            console.log(report);
+        }
     }
 
     log.info('Automation complete. Exiting.');

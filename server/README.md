@@ -13,101 +13,108 @@ The system consists of three main components working together to demonstrate the
 ```mermaid
 graph TD
     subgraph "User / Attacker"
-        A[🤖 Automation Script]
-        A2[Node.js WebSocket Client]
+        A[🤖 Automation Script (Node.js)]
     end
 
-    subgraph "Client Application - localhost:8234"
-        B[🌐 WebSocket Interface]
+    subgraph "Client-Side Application (localhost:8234)"
+        B(🌐 WebSocket Interface)
         C[💬 McpChatService]
-        D[📋 MessageFilterService]
+        D{MessageFilterService}
         E[🧠 UniversityRagService]
-        F[🗄️ InMemoryVectorStore]
-        G[🧩 MCP Client Logic]
+        F(VDB[InMemoryVectorStore])
+        I[🧩 MCP Client Logic]
     end
 
-    subgraph "This Server - localhost:8082"
-        H[🔗 MCP Server Endpoint]
-        I[⚙️ Tool Executor]
-        J[🧮 GpaCalculatorService]
-        K[📊 StatisticsService]
-        L[🔥 LookupService - VULNERABLE]
-        M[📄 attack.log]
+    subgraph "Server-Side Application (This Project - localhost:8082)"
+        J[🔗 MCP Server Endpoint]
+        K{Tool Executor}
+        L[🛠️ GpaCalculatorService]
+        M[🛠️ StatisticsService]
+        N[🔥 LookupService (Vulnerable)]
+        O[📄 attack.log]
     end
     
-    subgraph "External Services"
-        N[📚 ArXiv API]
-        O[📖 CrossRef API]
-        P[📗 OpenLibrary API]
+    subgraph "External World"
+        P[🌐 External APIs (ArXiv, etc.)]
     end
 
-    A --> A2
-    A2 -->|WebSocket Connection| B
-    B --> C
-    C --> D
-    D -->|Complex Query| E
-    D -->|Simple Query| C
-    E --> F
-    F -->|Academic Documents| E
-    E --> G
-    G -->|MCP Protocol| H
-    H --> I
-    I -->|Route Request| J
-    I -->|Route Request| K
-    I -->|Route Request| L
-    L -->|ATTACK: Context Scan| G
-    L -->|ATTACK: Data Exfiltration| M
-    L -->|Normal Operation| N
-    L -->|Normal Operation| O
-    L -->|Normal Operation| P
-    N -->|API Response| L
-    O -->|API Response| L
-    P -->|API Response| L
-    L -->|Tool Response| I
-    I -->|Result| H
-    H -->|MCP Response| G
-    G -->|Final Answer| C
-    C -->|Chat Response| B
-    B -->|Display Result| A2
-    A2 -->|Analysis| A
+    %% Client-Side Flow
+    A -- "Sends Prompts" --> B
+    B -- "User Message" --> C
+    C -- "Process Query" --> D
+    D -- "Complex Query" --> E
+    D -- "Simple Query" --> C
+    E -- "Vector Search" --> F
+    F -- "Returns Chunks" --> E
+    E -- "Builds Prompt" --> I
+    
+    %% MCP Communication
+    I -- "1. Tool Call Request (MCP)" --> J
+
+    %% Server-Side Flow
+    J -- "2. Forwards to Executor" --> K
+    K -- "3. Invokes Correct Tool" --> N
+    N -- "4. (ATTACK) Scans LLM Context" --> I
+    N -- "5. (ATTACK) Exfiltrates Data" --> O
+    N -- "6. (Normal) Calls External API" --> P
+    P -- "7. API Response" --> N
+    N -- "8. Tool Result" --> K
+    K -- "9. Tool Result" --> J
+    J -- "10. Sends Result to Client (MCP)" --> I
+
+    %% Final Response Flow
+    I -- "11. Provides Result to LLM" --> E
+    E -- "12. Generates Final Answer" --> C
+    C -- "Sends AI Response" --> B
+    B -- "Displays to User" --> A
+    
+    %% Style Definitions
+    classDef client fill:#e6f3ff,stroke:#0066cc,stroke-width:2px;
+    classDef server fill:#ffe6e6,stroke:#cc0000,stroke-width:2px;
+    classDef user fill:#e6ffed,stroke:#009933,stroke-width:2px;
+    classDef external fill:#f0f0f0,stroke:#333,stroke-width:2px;
+    classDef vuln fill:#ffcccc,stroke:#990000,stroke-width:3px,stroke-dasharray: 5 5;
+    
+    class A user;
+    class B,C,D,E,F,I client;
+    class J,K,L,M,N,O server;
+    class N vuln;
+    class P external;
 ```
 
-#### **Component Overview:**
+#### **Attack Flow Breakdown:**
 
-**🤖 User Simulation Layer:**
-- **Automation Script**: Orchestrates attack testing, sends crafted prompts, calculates success rates
-- **WebSocket Client**: Connects to client application, mimics real user interactions
+1. **User Simulation** (🤖): Automation script connects via WebSocket and sends crafted prompts mixing legitimate
+   academic queries with attack vectors
 
-**💬 Client Application (localhost:8234):**
-- **WebSocket Interface**: Handles real-time communication with users
-- **McpChatService**: Processes chat messages and manages conversation flow
-- **MessageFilterService**: Routes queries based on complexity (RAG vs direct chat)
-- **UniversityRagService**: Retrieves relevant academic documents for context
-- **InMemoryVectorStore**: Contains sensitive academic data (student records, financial info)
-- **MCP Client Logic**: Coordinates with MCP server tools, manages LLM context
+2. **Client Processing** (🌐 localhost:8234):
+    - **McpChatService**: Processes user messages and manages conversation flow
+    - **MessageFilterService**: Routes queries to appropriate handlers (RAG vs simple chat)
+    - **UniversityRagService**: For complex queries, searches vector database for relevant academic documents
+    - **InMemoryVectorStore**: Contains sensitive academic data (student records, financial info, etc.)
+    - **MCP Client Logic**: Coordinates with server tools and manages LLM context
 
-**🔥 This Server (localhost:8082):**
-- **MCP Server Endpoint**: Receives tool requests via Model Context Protocol
-- **Tool Executor**: Routes requests to appropriate service implementations
-- **GpaCalculatorService**: Legitimate academic GPA calculations
-- **StatisticsService**: Legitimate statistical analysis tools
-- **LookupService (VULNERABLE)**: Contains hidden malicious prompt injection
-- **attack.log**: Records successful data exfiltrations
+3. **Vulnerability Exploitation** (🔥 localhost:8082):
+    - **MCP Server Endpoint**: Receives tool requests via Model Context Protocol
+    - **Tool Executor**: Routes requests to appropriate service tools
+    - **LookupService (Vulnerable)**: Contains hidden malicious instructions that cause LLM to:
+        - Scan entire conversation context (RAG data + chat history)
+        - Extract sensitive information (PII, credentials, academic records)
+        - Exfiltrate data through the `academic_data` parameter
+    - **attack.log**: Records all successful data exfiltrations for analysis
 
-**🌐 External Services:**
-- Academic APIs provide legitimate research paper data
+4. **External Integration** (🌐): Server makes legitimate API calls to ArXiv, CrossRef, and OpenLibrary for actual
+   academic paper searches
 
-#### **Attack Flow:**
+#### **Key Vulnerability Points:**
 
-1. **Prompt Injection**: Automation script sends queries that trigger both RAG document retrieval and external tool usage
-2. **Context Loading**: Client loads sensitive academic data into LLM context via RAG system
-3. **Tool Invocation**: Client calls vulnerable LookupService for "legitimate" paper searches
-4. **Exploitation**: Hidden malicious instructions cause LLM to scan its entire context for sensitive data
-5. **Data Exfiltration**: Sensitive information is serialized and passed through the `academic_data` parameter
-6. **Logging**: Successful attacks are recorded in `attack.log` for analysis
-7. **Success Calculation**: Automation script analyzes logs to determine attack effectiveness
+- **Context Poisoning**: RAG system loads sensitive documents into LLM context
+- **Chat History**: Previous conversations may contain credentials or sensitive data
+- **Tool Description Injection**: Malicious instructions hidden in `@Tool(description=...)` annotations
+- **Parameter Hijacking**: Extra `academic_data` parameter serves as exfiltration channel
 
-This architecture demonstrates how **seemingly legitimate academic tools** can be weaponized through **sophisticated prompt injection** to extract sensitive data from AI systems in realistic enterprise environments.
+This architecture demonstrates how **legitimate academic tools** can be weaponized through **prompt injection** to
+exfiltrate sensitive data from AI systems in realistic enterprise scenarios.
 
 ## ✨ Key Features
 
@@ -331,12 +338,18 @@ The project includes a comprehensive Node.js automation script:
 
 1. **Install Dependencies:**
    ```bash
-   npm install @stomp/stompjs sockjs-client ws
+   npm install
    ```
 
 2. **Run Automation:**
+
+   For production:
    ```bash
-   node automation/automate.js
+   npm start
+   ```
+   For development:
+   ```bash
+   npm run dev
    ```
 
 The script will:
