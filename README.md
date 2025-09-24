@@ -375,10 +375,10 @@ Attack Flow:
 ```bash
 # Install automation dependencies
 cd automation/
-npm install @stomp/stompjs sockjs-client ws
+npm install
 
 # Run comprehensive attack simulation
-node automate.js
+npm run dev (for deveopment) or npm start (for production)
 
 # Expected output:
 # 🚀 Starting automated prompt injection testing...
