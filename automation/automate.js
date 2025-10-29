@@ -14,7 +14,7 @@ const APP_URL = 'http://localhost:8234';
 // The username for the bot to chat as.
 const USERNAME = 'AutomatedTesterBot';
 // The maximum number of *cycles* the bot will run. A multi-step prompt counts as one cycle.
-const MAX_PROMPT_CYCLES = 200;
+const MAX_PROMPT_CYCLES = 1000;
 // Delay in milliseconds to wait *after* receiving a response before sending the next prompt.
 const DELAY_BETWEEN_PROMPTS_MS = 500; // 0.5 seconds
 // Corrected path to the server's attack log file.
